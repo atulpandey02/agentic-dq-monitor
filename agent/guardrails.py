@@ -29,27 +29,23 @@ class GuardrailChecker:
         )
 
     def check(self, proposed_fix: str, table_name: str) -> tuple[bool, str]:
-        """
-        Runs all 4 safety checks on the proposed fix.
-        Returns (passed: bool, reason: str)
-        """
-        # Rule 1: Block destructive keywords
         result = self._check_destructive_keywords(proposed_fix)
+        print(f"   DEBUG Rule 1 result: {result}")
         if not result[0]:
             return result
 
-        # Rule 2: Fix must reference the correct table
         result = self._check_table_reference(proposed_fix, table_name)
+        print(f"   DEBUG Rule 2 result: {result}")
         if not result[0]:
             return result
 
-        # Rule 3: Only single statements allowed
         result = self._check_single_statement(proposed_fix)
+        print(f"   DEBUG Rule 3 result: {result}")
         if not result[0]:
             return result
 
-        # Rule 4: LLM safety check for edge cases
         result = self._check_llm_safety(proposed_fix, table_name)
+        print(f"   DEBUG Rule 4 result: {result}")
         if not result[0]:
             return result
 
@@ -100,9 +96,21 @@ class GuardrailChecker:
     ) -> tuple[bool, str]:
         """Rule 4: LLM double-checks for edge cases the rules might miss."""
         prompt = f"""
-        Is this SQL fix safe to run on a production Snowflake table?
-        Fix: {proposed_fix}
+        You are a database safety checker. Your ONLY job is to check if this SQL 
+        is structurally safe to run — not whether the business logic is correct.
+        
+        SQL: {proposed_fix}
         Table: {table_name}
+        
+        Answer YES if the SQL:
+        - Uses only UPDATE or INSERT
+        - Does not drop, truncate, or delete data
+        - References only one table
+        - Is a single statement
+        
+        Answer NO only if the SQL could cause irreversible data destruction.
+        Business logic concerns are NOT a reason to answer NO.
+        
         Answer only YES or NO followed by a one-line reason.
         """
         response = self.llm.invoke(prompt)

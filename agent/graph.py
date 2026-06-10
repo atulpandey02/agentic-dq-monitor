@@ -77,7 +77,18 @@ class DataQualityAgent:
             bad_row_sample=state.get("bad_row_sample", "Not available"),
         )
         response = self.llm.invoke(prompt)
-        return {"proposed_fix": response.content}
+        raw = response.content
+
+        # Strip markdown code blocks if LLM wrapped the SQL
+        import re
+        match = re.search(r"```(?:sql)?\s*(.*?)```", raw, re.DOTALL)
+        if match:
+            cleaned = match.group(1).strip()
+        else:
+            cleaned = raw.strip()
+
+        print(f"   Cleaned fix: {cleaned}")
+        return {"proposed_fix": cleaned}
 
     def guardrail_node(self, state: AgentState) -> dict:
         """
@@ -97,14 +108,18 @@ class DataQualityAgent:
     def human_approval_node(self, state: AgentState) -> dict:
         """
         Node 5: HITL checkpoint.
-        Graph pauses here via interrupt_before.
-        Resumes when engineer sends approved/rejected.
+        Graph pauses BEFORE this node via interrupt_before.
+        When resumed, this node runs and prints the summary.
         """
         print(">> human_approval_node running")
         print(f"   Root cause: {state.get('root_cause')}")
         print(f"   Proposed fix: {state.get('proposed_fix')}")
         print(f"   Guardrail: {state.get('guardrail_reason')}")
-        return state
+        print(f"   Human decision: {state.get('human_decision')}")
+        return {
+            "human_decision": state.get("human_decision"),
+            "human_feedback": state.get("human_feedback")
+    }
 
     def execute_fix_node(self, state: AgentState) -> dict:
         """
@@ -126,6 +141,8 @@ class DataQualityAgent:
 
     def route_after_guardrail(self, state: AgentState) -> str:
         """After guardrail: go to human approval or block."""
+        print(f"   DEBUG guardrail_passed: {state.get('guardrail_passed')}")
+        print(f"   DEBUG proposed_fix: {state.get('proposed_fix')}")
         if state.get("guardrail_passed"):
             return "human_approval"
         return END
@@ -231,14 +248,16 @@ class DataQualityAgent:
         """
         config = {"configurable": {"thread_id": run_id}}
 
-        resume_state = {
-            "human_decision": decision,
-            "human_feedback": feedback
-        }
-
         print(f"\nResuming run {run_id} with decision: {decision}\n")
 
-        for event in self.graph.invoke(resume_state, config=config):
-            print(f"Event: {event}")
+        # Update the state with human decision
+        self.graph.update_state(
+            config,
+            {"human_decision": decision, "human_feedback": feedback}
+        )
+
+        # Resume from where it paused — pass None to continue
+        for event in self.graph.stream(None, config=config):
+            print(f"Event: {list(event.keys())}")
 
         print("\nAgent run complete.")
