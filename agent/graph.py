@@ -6,9 +6,11 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode
+from agent.snowflake_connector import SnowflakeConnector
+from agent.tools import DataQualityTools
 
 from agent.state import AgentState
-from agent.tools import DataQualityTools, get_tools
+from agent.tools import DataQualityTools
 from agent.guardrails import GuardrailChecker
 
 load_dotenv()
@@ -26,7 +28,13 @@ class DataQualityAgent:
             model="llama-3.3-70b-versatile",
             temperature=0
         )
-        self.tools = get_tools()
+        # Initialize real Snowflake connector
+        self.connector = SnowflakeConnector()
+        
+        # Inject connector into tools — dependency injection
+        self.dq_tools = DataQualityTools(connector=self.connector)
+        self.tools = self.dq_tools.get_tools()
+        
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.guardrail_checker = GuardrailChecker()
         self.graph = self._build_graph()
@@ -124,15 +132,48 @@ class DataQualityAgent:
     def execute_fix_node(self, state: AgentState) -> dict:
         """
         Node 6: Execute the fix ONLY if human approved.
-        Week 2: replace print with real Snowflake execution.
+        Runs real SQL against Snowflake and logs to audit table.
         """
         print(">> execute_fix_node running")
         if state.get("human_decision") == "approved":
-            print(f"   Executing fix: {state.get('proposed_fix')}")
-            # Week 2: real Snowflake execution goes here
+            try:
+                print(f"   Executing fix: {state.get('proposed_fix')}")
+                self.connector.execute(state.get("proposed_fix"))
+                print("   Fix applied successfully to Snowflake")
+                self._log_to_audit(state, "approved")
+            except Exception as e:
+                print(f"   Fix execution failed: {str(e)}")
         else:
-            print(f"   Fix rejected by engineer.")
+            print("   Fix rejected by engineer.")
+            self._log_to_audit(state, "rejected")
         return state
+
+    def _log_to_audit(self, state: AgentState, decision: str) -> None:
+        """Logs every agent run to DQ_MONITOR.AUDIT.AGENT_RUNS."""
+        try:
+            from datetime import datetime
+            sql = f"""
+                INSERT INTO DQ_MONITOR.AUDIT.AGENT_RUNS (
+                    run_id, table_name, failure_type, root_cause,
+                    proposed_fix, guardrail_passed, guardrail_reason,
+                    human_decision, started_at, completed_at
+                ) VALUES (
+                    '{state.get("run_id")}',
+                    '{state.get("table_name")}',
+                    '{state.get("failure_type")}',
+                    $${state.get("root_cause")}$$,
+                    $${state.get("proposed_fix")}$$,
+                    {state.get("guardrail_passed")},
+                    '{state.get("guardrail_reason")}',
+                    '{decision}',
+                    '{state.get("started_at")}',
+                    '{datetime.utcnow().isoformat()}'
+                )
+            """
+            self.connector.execute(sql, database="DQ_MONITOR")
+            print("   Audit log written to DQ_MONITOR.AUDIT.AGENT_RUNS")
+        except Exception as e:
+            print(f"   Audit log failed: {str(e)}")
 
     # ----------------------------------------------------------------
     # ROUTING FUNCTIONS
