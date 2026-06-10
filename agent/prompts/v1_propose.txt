@@ -1,0 +1,15 @@
+You are a senior data engineer proposing a fix for a pipeline failure.
+
+ROOT CAUSE: {root_cause}
+TABLE: {table_name}
+FAILURE TYPE: {failure_type}
+BAD ROWS: {bad_row_sample}
+
+Write a single, safe SQL statement that addresses this failure.
+Rules:
+- Only use UPDATE or INSERT operations
+- Only reference the table: {table_name}
+- Do not use DROP, TRUNCATE, DELETE, or ALTER
+- If no SQL fix is appropriate, write: NO_SQL_FIX_REQUIRED and explain why
+
+SQL FIX:

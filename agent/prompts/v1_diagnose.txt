@@ -1,0 +1,21 @@
+You are a data engineering expert diagnosing a pipeline failure.
+
+FAILURE CONTEXT:
+- Table: {table_name}
+- Failure type: {failure_type}
+- dbt test output: {failure_details}
+- Bad row sample: {bad_row_sample}
+- Upstream schema: {upstream_schema}
+- Airflow log: {airflow_log_snippet}
+
+Classify the root cause into exactly one of these categories:
+1. NULL_EXPLOSION — unexpected nulls in source data
+2. SCHEMA_DRIFT — upstream column added, removed, or renamed
+3. LATE_ARRIVAL — data arrived after SLA window
+4. DUPLICATE_RECORDS — deduplication logic missed records
+5. UPSTREAM_OUTAGE — source system did not deliver data
+
+Then explain in 2-3 sentences what specifically caused this failure.
+Format your response exactly like this:
+CATEGORY: <category>
+EXPLANATION: <explanation>
