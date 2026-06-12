@@ -33,36 +33,48 @@ class SnowflakeConnector:
 
     def query(self, sql: str, database: str = "STOCKMARKETBATCH") -> list:
         """
-        Executes a SELECT query and returns rows as list of dicts.
-        Always uses a fresh cursor.
+        Executes a SELECT query.
+        Always creates a fresh connection to avoid token expiry.
         """
-        if not self._conn:
-            self.connect()
-
-        cursor = self._conn.cursor(snowflake.connector.DictCursor)
+        fresh_conn = snowflake.connector.connect(
+            account=self.account,
+            user=self.user,
+            password=self.password,
+            warehouse=self.warehouse,
+            role=self.role
+        )
+        cursor = fresh_conn.cursor(snowflake.connector.DictCursor)
         try:
             cursor.execute(f"USE DATABASE {database}")
             cursor.execute(sql)
             return cursor.fetchall()
         finally:
             cursor.close()
+            fresh_conn.close()
 
     def execute(self, sql: str, database: str = "STOCKMARKETBATCH") -> None:
         """
-        Executes a non-SELECT statement (INSERT, UPDATE).
-        Used by execute_fix_node to apply remediation.
+        Executes a non-SELECT statement.
+        Always creates a fresh connection to avoid token expiry.
         """
-        if not self._conn:
-            self.connect()
-
-        cursor = self._conn.cursor()
+        # Always create fresh connection for execution
+        # Prevents authentication token expiry on long-running sessions
+        fresh_conn = snowflake.connector.connect(
+            account=self.account,
+            user=self.user,
+            password=self.password,
+            warehouse=self.warehouse,
+            role=self.role
+        )
+        cursor = fresh_conn.cursor()
         try:
             cursor.execute(f"USE DATABASE {database}")
             cursor.execute(sql)
-            self._conn.commit()
+            fresh_conn.commit()
             print(f">> SnowflakeConnector: executed successfully")
         finally:
             cursor.close()
+            fresh_conn.close()
 
     def close(self) -> None:
         """Closes the connection cleanly."""

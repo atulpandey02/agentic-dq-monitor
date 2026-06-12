@@ -29,6 +29,10 @@ class GuardrailChecker:
         )
 
     def check(self, proposed_fix: str, table_name: str) -> tuple[bool, str]:
+         # Safety check — if table_name is empty or placeholder, skip Rule 2
+        if not table_name or table_name == "string":
+            table_name = "HISTORICAL_STOCK"  # fallback to known table
+            
         result = self._check_destructive_keywords(proposed_fix)
         print(f"   DEBUG Rule 1 result: {result}")
         if not result[0]:

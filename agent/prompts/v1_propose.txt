@@ -5,11 +5,18 @@ TABLE: {table_name}
 FAILURE TYPE: {failure_type}
 BAD ROWS: {bad_row_sample}
 
+ACTUAL TABLE SCHEMA — use EXACTLY these column names, no others:
+Table: HISTORICAL_STOCK
+Columns: SYMBOL, DATE, OPEN_PRICE, HIGH_PRICE, LOW_PRICE, CLOSE_PRICE, 
+         VOLUME, DAILY_RETURN, DAILY_RANGE, IS_POSITIVE_DAY, 
+         SMA_5, SMA_20, BATCH_DATE, LAST_UPDATED
+
 Write a single, safe SQL statement that addresses this failure.
 Rules:
 - Only use UPDATE or INSERT operations
 - Only reference the table: {table_name}
 - Do not use DROP, TRUNCATE, DELETE, or ALTER
+- Use ONLY the column names listed above — never invent column names
 - If no SQL fix is appropriate, write: NO_SQL_FIX_REQUIRED and explain why
 
 SQL FIX:
