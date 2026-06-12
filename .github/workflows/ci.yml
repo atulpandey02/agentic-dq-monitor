@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install langgraph langchain langchain-groq langsmith
+          pip install snowflake-connector-python
+          pip install fastapi uvicorn pydantic
+          pip install pytest python-dotenv
+          pip install mcp
+
+      - name: Run guardrail unit tests
+        run: |
+          pytest tests/test_guardrails.py -v
+
+      - name: Validate DAG syntax
+        run: |
+          python -c "
+          import ast
+          with open('airflow/dags/dq_monitor_dag.py') as f:
+              source = f.read()
+          ast.parse(source)
+          print('DAG syntax OK')
+          "
+
+      - name: Validate agent modules import
+        run: |
+          python -c "
+          import os
+          os.environ['SNOWFLAKE_ACCOUNT'] = 'test'
+          os.environ['SNOWFLAKE_USER'] = 'test'
+          os.environ['SNOWFLAKE_PASSWORD'] = 'test'
+          os.environ['SNOWFLAKE_WAREHOUSE'] = 'test'
+          os.environ['SNOWFLAKE_ROLE'] = 'test'
+          os.environ['LANGCHAIN_TRACING_V2'] = 'false'
+          from agent.state import AgentState
+          from agent.guardrails import GuardrailChecker
+          print('Core modules import OK')
+          "
