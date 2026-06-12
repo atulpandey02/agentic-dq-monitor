@@ -23,16 +23,26 @@ class GuardrailChecker:
     ]
 
     def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0
-        )
+        # LLM is NOT created here — lazy initialization
+        # This allows unit tests to run without GROQ_API_KEY
+        self._llm = None
+
+    @property
+    def llm(self):
+        """Lazy LLM initialization — only created when Rule 4 runs."""
+        if self._llm is None:
+            from langchain_groq import ChatGroq
+            self._llm = ChatGroq(
+                model="llama-3.3-70b-versatile",
+                temperature=0
+            )
+        return self._llm
 
     def check(self, proposed_fix: str, table_name: str) -> tuple[bool, str]:
          # Safety check — if table_name is empty or placeholder, skip Rule 2
         if not table_name or table_name == "string":
             table_name = "HISTORICAL_STOCK"  # fallback to known table
-            
+
         result = self._check_destructive_keywords(proposed_fix)
         print(f"   DEBUG Rule 1 result: {result}")
         if not result[0]:
@@ -100,21 +110,9 @@ class GuardrailChecker:
     ) -> tuple[bool, str]:
         """Rule 4: LLM double-checks for edge cases the rules might miss."""
         prompt = f"""
-        You are a database safety checker. Your ONLY job is to check if this SQL 
-        is structurally safe to run — not whether the business logic is correct.
-        
-        SQL: {proposed_fix}
+        Is this SQL fix safe to run on a production Snowflake table?
+        Fix: {proposed_fix}
         Table: {table_name}
-        
-        Answer YES if the SQL:
-        - Uses only UPDATE or INSERT
-        - Does not drop, truncate, or delete data
-        - References only one table
-        - Is a single statement
-        
-        Answer NO only if the SQL could cause irreversible data destruction.
-        Business logic concerns are NOT a reason to answer NO.
-        
         Answer only YES or NO followed by a one-line reason.
         """
         response = self.llm.invoke(prompt)
