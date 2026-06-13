@@ -21,7 +21,7 @@
 
 <br/>
 
-> *Layered on top of the [Stock Market Intelligence Pipeline V2](https://github.com/atulpandey02/stock-market-rag-pipeline) — it monitors that pipeline's real dbt tests and Snowflake tables.*
+> *Layered on top of the [Stock Market Intelligence Pipeline V2](https://github.com/atulpandey02/stock-market-lakehouse) — it monitors that pipeline's real dbt tests and Snowflake tables powered by hybrid RAG intelligence pipeline with LLM observability.*
 
 </div>
 
@@ -381,7 +381,7 @@ The deterministic rules (1–3) need no API key. Lazy-loading the LLM means the 
 
 ## Getting Started
 
-> Assumes the [Stock Market Intelligence Pipeline V2](https://github.com/atulpandey02/stock-market-rag-pipeline) is running, since this agent monitors it.
+> Assumes the [Stock Market Intelligence Pipeline V2](https://github.com/atulpandey02/sstock-market-lakehouse) is running, since this agent monitors it.
 
 ### Prerequisites
 
