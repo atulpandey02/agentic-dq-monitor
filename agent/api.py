@@ -116,7 +116,37 @@ def get_run_status(run_id: str):
     finally:
         connector.close()
 
-
+@app.get("/status/{run_id}")
+def get_run_status(run_id: str):
+    """
+    Check live status of a paused agent run.
+    Reads from LangGraph checkpointer — works even before 
+    Snowflake audit log is written.
+    """
+    try:
+        config = {"configurable": {"thread_id": run_id}}
+        state = agent.graph.get_state(config)
+        
+        if not state or not state.values:
+            return {"run_id": run_id, "status": "not_found"}
+        
+        values = state.values
+        human_decision = values.get("human_decision")
+        root_cause = values.get("root_cause", "")
+        proposed_fix = values.get("proposed_fix", "")
+        guardrail_passed = values.get("guardrail_passed")
+        
+        return {
+            "run_id": run_id,
+            "status": "completed" if human_decision else "paused",
+            "human_decision": human_decision,
+            "root_cause": root_cause[:200] if root_cause else None,
+            "proposed_fix": proposed_fix[:200] if proposed_fix else None,
+            "guardrail_passed": guardrail_passed
+        }
+    except Exception as e:
+        return {"run_id": run_id, "status": "error", "message": str(e)}
+        
 if __name__ == "__main__":
     uvicorn.run(
         "agent.api:app",
