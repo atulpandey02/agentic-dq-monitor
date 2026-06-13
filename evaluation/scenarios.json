@@ -1,0 +1,52 @@
+[
+    {
+      "id": "scenario_001",
+      "failure_type": "dbt_test",
+      "table_name": "HISTORICAL_STOCK",
+      "failure_details": "source_not_null_batch_HISTORICAL_STOCK_CLOSE_PRICE failed. Got 1 result, configured to fail if != 0. Symbol: AAPL, Date: 2026-06-11",
+      "bad_row_sample": "date=2026-06-11, symbol=AAPL, close_price=NULL, volume=1500000",
+      "upstream_schema": "No schema changes detected",
+      "expected_category": "NULL_EXPLOSION",
+      "expected_fix_contains": "UPDATE"
+    },
+    {
+      "id": "scenario_002",
+      "failure_type": "dbt_test",
+      "table_name": "HISTORICAL_STOCK",
+      "failure_details": "source_not_null_batch_HISTORICAL_STOCK_CLOSE_PRICE failed. Got 5 results. Multiple symbols affected.",
+      "bad_row_sample": "date=2026-06-11, symbol=MSFT, close_price=NULL\ndate=2026-06-11, symbol=GOOGL, close_price=NULL",
+      "upstream_schema": "No schema changes detected",
+      "expected_category": "NULL_EXPLOSION",
+      "expected_fix_contains": "UPDATE"
+    },
+    {
+      "id": "scenario_003",
+      "failure_type": "dbt_test",
+      "table_name": "HISTORICAL_STOCK",
+      "failure_details": "accepted_values check failed on column market_status. Got values not in accepted list.",
+      "bad_row_sample": "market_status=PRE_MARKET not in accepted values",
+      "upstream_schema": "Column market_status added 2 days ago to source table",
+      "expected_category": "SCHEMA_DRIFT",
+      "expected_fix_contains": "NO_SQL_FIX_REQUIRED"
+    },
+    {
+      "id": "scenario_004",
+      "failure_type": "airflow_dag",
+      "table_name": "HISTORICAL_STOCK",
+      "failure_details": "DAG stock_market_batch_pipeline failed. Sensor timed out waiting for source data.",
+      "bad_row_sample": "No rows found for date=2026-06-11",
+      "upstream_schema": "No schema changes detected",
+      "expected_category": "LATE_ARRIVAL",
+      "expected_fix_contains": "NO_SQL_FIX_REQUIRED"
+    },
+    {
+      "id": "scenario_005",
+      "failure_type": "dbt_test",
+      "table_name": "HISTORICAL_STOCK",
+      "failure_details": "unique check failed on composite key symbol+date. Got 143 duplicate records.",
+      "bad_row_sample": "date=2026-06-11, symbol=AAPL appears 2 times",
+      "upstream_schema": "No schema changes detected",
+      "expected_category": "DUPLICATE_RECORDS",
+      "expected_fix_contains": "NO_SQL_FIX_REQUIRED"
+    }
+  ]
